@@ -1,0 +1,108 @@
+###
+###
+	CREACION DE TEMPLATES
+###
+###
+
+###############################################################################################################
+
+Creacion de las templates para la capa RAW
+
+!python3 CDF_SII_BCH_ING_RAW.py \
+    --setup_file ./setup.py \
+    --projectid yas-dev-sii-pid \
+    --save_main_session \
+    --jsonconfig gs://yas-sii-int-des-dev/AB/config/PAR_SII_BCH_ING_AB_RAW_SERVICIOS.json \
+    --runner DataflowRunner \
+    --region us-east1 \
+    --temp_location gs://yas-sii-int-des-dev/AB/temp/ \
+    --staging_location gs://yas-sii-int-des-dev/AB/temp/ \
+    --template_location gs://yas-sii-int-des-dev/AB/templates/TPL_SII_BCH_ING_AB_RAW_SERVICIOS \
+    --service_account_email yas-dev-sii-pid-sa@yas-dev-sii-pid.iam.gserviceaccount.com
+
+###############################################################################################################
+
+Creacion de templates para las capas TRN, HOM y BQ
+
+!python3 ./wrapper_create_template.py trn gs://yas-sii-int-des-dev/AB/config/PAR_SII_BCH_ELT_AB_TRN_HOM_SERVICIOS.json
+
+###############################################################################################################
+
+Ejecucion de templates para la capa RAW
+
+!gcloud dataflow jobs run dfj-sii-bch-ing-ab-raw-servicios \
+    --gcs-location gs://yas-sii-int-des-dev/AB/templates/TPL_SII_BCH_ING_AB_RAW_SERVICIOS \
+    --region us-east1 \
+    --worker-machine-type 'n2d-standard-2' \
+    --subnetwork https://www.googleapis.com/compute/v1/projects/sha-net-dev-id/regions/us-east1/subnetworks/subnet-analytics-region-a \
+    --service-account-email yas-dev-sii-pid-sa@yas-dev-sii-pid.iam.gserviceaccount.com
+
+###############################################################################################################
+
+Ejecucion de templates para las capas TRN, HOM y BQ
+
+!python3 ./wrapper_execute_template.py trn-full gs://yas-sii-int-des-dev/AB/config/PAR_SII_BCH_ELT_AB_TRN_HOM_SERVICIOS.json
+
+
+###############################################################################################################
+
+
+ANEXO:
+
+### USO DE WRAPPERS ###
+Los Wrappers es codigo que lee el json de configuracion (ARCHIVO_CONFIGURACION.JSON), 
+procesa la informacion y ejecuta las plantillas correspondientes con esa informacion.
+
+Para la creacion de las plantillas se usa el campo "code_file_<capa>", 
+que se debe encontrar en el ARCHIVO_CONFIGURACION.JSON 
+y cualquier cambio en dicho archivo debe complementarse en los Wrappers.
+
+
+
+## wrapper_create_template.py ##
+Se usa para crear la plantilla y recibe 2 parametros:
+
+Ejemplo:
+python wrapper_create_template.py trn ARCHIVO_CONFIGURACION.JSON
+
+En el primer lugar de parametros recibe:
+trn
+	se crea la plantilla para TRN
+hom
+	se crea la plantilla para HOM
+bq
+	se crea la plantilla para BQ
+
+En el segundo lugar de los parametros recibe el archivo JSON
+(ARCHIVO_CONFIGURACION.JSON) con los datos de configuracion necesarios
+
+
+
+## wrapper_execute_template.py ## 
+Se usa para ejecutar la plantilla y recibe 2 parametros:
+
+Ejemplo:
+python wrapper_execute_template.py trn-full ARCHIVO_CONFIGURACION.JSON
+
+En el primer lugar de parametros recibe:
+trn-full
+	se ejecuta la plantilla para TRN escaneando todas las carpetas en el origen
+	y generando un trabajo por fecha/carpeta
+trn-delta
+	se ejecuta la plantilla para TRN buscando en el origen 
+	la fecha/carpeta del dia today()-1
+hom-full
+	se ejecuta la plantilla para HOM escaneando todas las carpetas en el origen
+	y generando un trabajo por fecha/carpeta
+hom-delta
+	se ejecuta la plantilla para HOM buscando en el origen 
+	la fecha/carpeta del dia today()-1
+bq-full
+	se ejecuta la plantilla para BQ escaneando todas las carpetas en el origen
+	y generando un trabajo por fecha/carpeta
+bq-delta
+	se ejecuta la plantilla para BQ buscando en el origen 
+	la fecha/carpeta del dia today()-1
+
+En el segundo lugar de los parametros recibe el archivo JSON 
+(ARCHIVO_CONFIGURACION.JSON) con los datos de configuracion necesarios
